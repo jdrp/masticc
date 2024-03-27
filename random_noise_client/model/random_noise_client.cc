@@ -14,6 +14,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+ #include <iostream>
 #include "ns3/random_noise_client.h"
 
 #include "ns3/inet-socket-address.h"
@@ -122,10 +123,6 @@ RandomNoiseClient::RandomNoiseClient()
 
     m_normalRand = CreateObject<NormalRandomVariable>();
     m_exponentialRand = CreateObject<ExponentialRandomVariable>();
-
-    m_normalRand->SetAttribute("Mean", DoubleValue(m_packetSizeMean));
-    m_normalRand->SetAttribute("Variance", DoubleValue(m_packetSizeVariance));
-    m_exponentialRand->SetAttribute("Mean", DoubleValue(m_intervalMean));
 }
 
 RandomNoiseClient::~RandomNoiseClient()
@@ -164,6 +161,10 @@ void
 RandomNoiseClient::StartApplication()
 {
     NS_LOG_FUNCTION(this);
+
+    m_normalRand->SetAttribute("Mean", DoubleValue(m_packetSizeMean));
+    m_normalRand->SetAttribute("Variance", DoubleValue(m_packetSizeVariance));
+    m_exponentialRand->SetAttribute("Mean", DoubleValue(m_intervalMean));
 
     if (!m_socket)
     {
@@ -348,10 +349,10 @@ RandomNoiseClient::Send()
 
     NS_ASSERT(m_sendEvent.IsExpired());
 
-    uint32_t packetSize = std::max(0, static_cast<int>(m_normalRand->GetValue()));
-
+    uint32_t packetSize = std::abs(static_cast<int>(m_normalRand->GetValue()));
+    std::cout << packetSize << "bytes"<< std::endl;
     Ptr<Packet> p = Create<Packet>(packetSize);
-    
+
     Address localAddress;
     m_socket->GetSockName(localAddress);
     // call to the trace sinks before the packet is actually sent,
@@ -403,8 +404,10 @@ RandomNoiseClient::Send()
 
     if (m_sent < m_count || m_count == 0)
     {
-        Time nextInterval(Seconds(m_exponentialRand->GetValue()));
-        ScheduleTransmit(m_interval);
+        float randInterval =  m_exponentialRand->GetValue();
+        std::cout << randInterval << "ms" << std::endl;
+        Time nextInterval(Seconds(randInterval));
+        ScheduleTransmit(nextInterval);
     }
 }
 

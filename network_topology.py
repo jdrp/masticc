@@ -9,7 +9,6 @@
 #         C2
 
 
-
 try:
     from ns import ns
 except ModuleNotFoundError:
@@ -79,7 +78,17 @@ serverApps = echoServer.Install(serverNodes.Get(1))
 serverApps.Start(ns.core.Seconds(1.0))
 serverApps.Stop(ns.core.Seconds(10.0))
 
-# set up client
+# set up noise client
+noiseClient = ns.applications.RandomNoiseClientHelper(serverInterfaces.GetAddress(1).ConvertTo(), 9)
+noiseClient.SetAttribute("IntervalMean", ns.core.DoubleValue(0.1))
+noiseClient.SetAttribute("PacketSizeMean", ns.core.DoubleValue(1024.0))
+noiseClient.SetAttribute("PacketSizeVariance", ns.core.DoubleValue(1024.0))
+noiseApps = noiseClient.Install(star.GetSpokeNode(1))
+noiseApps.Start(ns.core.Seconds(2.0))
+noiseApps.Stop(ns.core.Seconds(10.0))
+
+
+# set up main client
 echoClient = ns.applications.UdpEchoClientHelper(serverInterfaces.GetAddress(1).ConvertTo(), 9)
 echoClient.SetAttribute("MaxPackets", ns.core.UintegerValue(1))
 echoClient.SetAttribute("Interval", ns.core.TimeValue(ns.core.Seconds(1.)))
