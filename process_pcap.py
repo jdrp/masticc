@@ -46,7 +46,7 @@ def calculate_packet_loss(sending_times: dict, receiving_times: dict, window_siz
     return rolling_packet_loss
 
 
-def process_pcap(pcap_file) -> Optional[dict]:
+def process_client_pcap(pcap_file) -> Optional[dict]:
     sending_times = {}
     receiving_times = {}
     ts = []
@@ -87,23 +87,49 @@ def process_pcap(pcap_file) -> Optional[dict]:
     }
 
 
-# Example usage
-pcap_file = glob('../traces/client*.pcap')[0]
+def filter_packets_from_ip(packets, ip):
+    filtered_packets = []
+    for packet in packets:
+        if IP in packet and UDP in packet:
+            if packet[IP].src == "192.168.1.2":
+                filtered_packets.append(packet)
+    return filtered_packets
 
-print(f"Processing {pcap_file}")
-data = process_pcap(pcap_file)
+
+def process_router_pcaps(r1_pcap, r2_pcap, client_ip):
+    r1_packets = filter_packets_from_ip(rdpcap(r1_pcap), client_ip)
+    r2_packets = filter_packets_from_ip(rdpcap(r2_pcap), client_ip)
+
+    print(len(r1_packets))
+
+    for r1_packet, r2_packet in zip(r1_packets, r2_packets):
+        delay = r2_packet.time - r1_packet.time  # - 0.018432
+        print(delay)
+        packet_size = len(r2_packet[IP])
+        bw = packet_size / delay
+        print(bw)
+
+
+client_ip = "192.168.1.2"
+client_pcap_file = '../traces/client.pcap'
+r1_pcap_file = client_pcap_file  # '../traces/router1.pcap'
+r2_pcap_file = '../traces/router2.pcap'
+process_router_pcaps(r1_pcap_file, r2_pcap_file, client_ip)
+
+print(f"Processing {client_pcap_file}")
+latency_data = process_client_pcap(client_pcap_file)
 
 with open('training_data/latency_data.pkl', 'wb') as f:
-    pickle.dump(data, f)
+    pickle.dump(latency_data, f)
 
 with open('training_data/latency_data.csv', 'w') as outfile:
     writer = csv.writer(outfile)
-    writer.writerow(data.keys())
-    writer.writerows(zip(*data.values()))
+    writer.writerow(latency_data.keys())
+    writer.writerows(zip(*latency_data.values()))
 
 plt.figure(figsize=(10, 6))
-plt.plot(data['ts'], data['latencies'], color='green', label='Raw')
-plt.plot(data['ts'], data['latencies_smoothed'], color='blue', label='Smoothed')
+plt.plot(latency_data['ts'], latency_data['latencies'], color='green', label='Raw')
+plt.plot(latency_data['ts'], latency_data['latencies_smoothed'], color='blue', label='Smoothed')
 plt.xlabel('Time')
 plt.ylabel('Latency')
 plt.title('Latency Over Time')
@@ -112,7 +138,7 @@ plt.legend()
 
 
 plt.figure(figsize=(10, 6))
-plt.plot(data['ts'], data['first_order_deriv'], color='green', label='1st deriv')
+plt.plot(latency_data['ts'], latency_data['first_order_deriv'], color='green', label='1st deriv')
 plt.xlabel('Time')
 plt.ylabel('Latency 1st Derivative')
 plt.title('Latency Over Time')
@@ -120,28 +146,28 @@ plt.legend()
 # plt.show()
 
 plt.figure(figsize=(10, 6))
-plt.plot(data['ts'], data['second_order_deriv'], color='green', label='2nd deriv')
+plt.plot(latency_data['ts'], latency_data['second_order_deriv'], color='green', label='2nd deriv')
 plt.xlabel('Time')
 plt.ylabel('Latency 2nd Derivative')
 plt.title('Latency Over Time')
 plt.legend()
 
 plt.figure(figsize=(10, 6))
-plt.plot(data['ts'], data['mean_latency'], color='green', label='Mean latency')
+plt.plot(latency_data['ts'], latency_data['mean_latency'], color='green', label='Mean latency')
 plt.xlabel('Time')
 plt.ylabel('Mean latency')
 plt.title('Latency Over Time')
 plt.legend()
 
 plt.figure(figsize=(10, 6))
-plt.plot(data['ts'], data['stdev_latency'], color='green', label='Std Dev latency')
+plt.plot(latency_data['ts'], latency_data['stdev_latency'], color='green', label='Std Dev latency')
 plt.xlabel('Time')
 plt.ylabel('Std Dev Latency')
 plt.title('Latency Over Time')
 plt.legend()
 
 plt.figure(figsize=(10, 6))
-plt.plot(data['ts'], data['packet_loss'], color='green', label='Packet loss')
+plt.plot(latency_data['ts'], latency_data['packet_loss'], color='green', label='Packet loss')
 plt.xlabel('Time')
 plt.ylabel('Packet loss')
 plt.title('Packet loss Over Time')

@@ -24,7 +24,7 @@ NS_LOG_COMPONENT_DEFINE("MasticcTopology");
 int
 main(int argc, char * argv[]) {
     bool verbose = true;
-    uint32_t nClients = 4;
+    uint32_t nClients = 3;
     uint32_t accessRate = 1024; // Mbps
     uint32_t accessDelay = 5; // ms
     uint32_t bottleneckRate = 1; // Mbps
@@ -41,7 +41,7 @@ main(int argc, char * argv[]) {
         LogComponentEnable("UdpEchoClientApplication", LOG_LEVEL_INFO);
         LogComponentEnable("UdpEchoServerApplication", LOG_LEVEL_INFO);
     }
-    nClients = nClients < 2 ? 2 : nClients;
+    nClients = nClients < 3 ? 3 : nClients;
     InternetStackHelper stack;
     Ipv4AddressHelper address;
     // client star network
@@ -75,12 +75,12 @@ main(int argc, char * argv[]) {
     serverApps.Stop(Seconds(12.0));
     // set up noise client
     RandomNoiseClientHelper noiseClient(serverInterfaces.GetAddress(1), 9);
-    noiseClient.SetAttribute("IntervalMean", DoubleValue(0.001));
+    noiseClient.SetAttribute("IntervalMean", DoubleValue(0.01));
     noiseClient.SetAttribute("PacketSizeMean", DoubleValue(1000.0));
     noiseClient.SetAttribute("PacketSizeVariance", DoubleValue(1024.0));
     ApplicationContainer noiseApps = noiseClient.Install(star.GetSpokeNode(0));
-    noiseApps.Start(Seconds(0.5));
-    noiseApps.Stop(Seconds(10.0));
+    //noiseApps.Start(Seconds(0.5));
+    //noiseApps.Stop(Seconds(10.0));
     // set up main client
     UdpEchoClientHelper echoClient(serverInterfaces.GetAddress(1), 9);
     echoClient.SetAttribute("MaxPackets", UintegerValue(0));
@@ -132,7 +132,9 @@ main(int argc, char * argv[]) {
     //flowMonitor = flowHelper.Install(routerNodes);
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-    pointToPoint.EnablePcap("traces/client", star.GetSpokeNode(1) -> GetDevice(0), true, false);
+    pointToPoint.EnablePcap("traces/client.pcap", star.GetSpokeNode(1) -> GetDevice(0), false, true);
+    pointToPoint.EnablePcap("traces/router1.pcap", star.GetHub() -> GetDevice(1), false, true);
+    pointToPoint.EnablePcap("traces/router2.pcap", serverDevices.Get(1), false, true);
     //pointToPoint.EnablePcapAll("traces/ppp");
 
     Simulator::Stop(Seconds(10));
