@@ -1,12 +1,12 @@
 // Client-server topology
 //
-// C0
-// \ 192.168.0.0
-// .1.0 \
+//        C0
+//          \ 192.168.0.0
+//      .1.0 \
 // C1 ------- R1 ------------ R2 ------------ Server
-// / 10.0.0.0 10.0.2.0
-// / .2.0
-// C2
+//           / 10.0.0.0 10.0.2.0
+//          / .2.0
+//        C2
 #include "ns3/applications-module.h"
 #include "ns3/core-module.h"
 #include "ns3/internet-module.h"
@@ -72,11 +72,11 @@ main(int argc, char * argv[]) {
     UdpEchoServerHelper echoServer(9);
     ApplicationContainer serverApps = echoServer.Install(serverNodes.Get(1));
     serverApps.Start(Seconds(1.0));
-    serverApps.Stop(Seconds(10.0));
+    serverApps.Stop(Seconds(12.0));
     // set up noise client
     RandomNoiseClientHelper noiseClient(serverInterfaces.GetAddress(1), 9);
-    noiseClient.SetAttribute("IntervalMean", DoubleValue(0.01));
-    noiseClient.SetAttribute("PacketSizeMean", DoubleValue(1024.0));
+    noiseClient.SetAttribute("IntervalMean", DoubleValue(0.001));
+    noiseClient.SetAttribute("PacketSizeMean", DoubleValue(1000.0));
     noiseClient.SetAttribute("PacketSizeVariance", DoubleValue(1024.0));
     ApplicationContainer noiseApps = noiseClient.Install(star.GetSpokeNode(0));
     noiseApps.Start(Seconds(2.0));
@@ -85,7 +85,7 @@ main(int argc, char * argv[]) {
     UdpEchoClientHelper echoClient(serverInterfaces.GetAddress(1), 9);
     echoClient.SetAttribute("MaxPackets", UintegerValue(0));
     echoClient.SetAttribute("Interval", TimeValue(Seconds(0.1)));
-    echoClient.SetAttribute("PacketSize", UintegerValue(256));
+    echoClient.SetAttribute("PacketSize", UintegerValue(1024));
     ApplicationContainer clientApps = echoClient.Install(star.GetSpokeNode(1));
     clientApps.Start(Seconds(1.0));
     clientApps.Stop(Seconds(10.0));
