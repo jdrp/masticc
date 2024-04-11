@@ -74,16 +74,23 @@ main(int argc, char * argv[]) {
     serverApps.Start(Seconds(1.0));
     serverApps.Stop(Seconds(10.0));
     // set up noise client
-    //RandomNoiseClientHelper noiseClient(serverInterfaces.GetAddress(1), 9);
-    //noiseClient.SetAttribute("IntervalMean", DoubleValue(0.1));
-    //noiseClient.SetAttribute("PacketSizeMean", DoubleValue(1024.0));
-    //noiseClient.SetAttribute("PacketSizeVariance", DoubleValue(1024.0));
-    //ApplicationContainer noiseApps = noiseClient.Install(star.GetSpokeNode(0));
-    //noiseApps.Start(Seconds(2.0));
-    //noiseApps.Stop(Seconds(10.0));
+    RandomNoiseClientHelper noiseClient(serverInterfaces.GetAddress(1), 9);
+    noiseClient.SetAttribute("IntervalMean", DoubleValue(0.01));
+    noiseClient.SetAttribute("PacketSizeMean", DoubleValue(1024.0));
+    noiseClient.SetAttribute("PacketSizeVariance", DoubleValue(1024.0));
+    ApplicationContainer noiseApps = noiseClient.Install(star.GetSpokeNode(0));
+    noiseApps.Start(Seconds(2.0));
+    noiseApps.Stop(Seconds(8.0));
     // set up main client
+    UdpEchoClientHelper echoClient(serverInterfaces.GetAddress(1), 9);
+    echoClient.SetAttribute("MaxPackets", UintegerValue(0));
+    echoClient.SetAttribute("Interval", TimeValue(Seconds(0.1)));
+    echoClient.SetAttribute("PacketSize", UintegerValue(256));
+    ApplicationContainer clientApps = echoClient.Install(star.GetSpokeNode(1));
+    clientApps.Start(Seconds(1.0));
+    clientApps.Stop(Seconds(10.0));
 
-    Ptr < UniformRandomVariable > interval_randomizer = CreateObject < UniformRandomVariable > ();
+    /*Ptr < UniformRandomVariable > interval_randomizer = CreateObject < UniformRandomVariable > ();
     interval_randomizer -> SetAttribute("Min", DoubleValue(0.005));
     interval_randomizer -> SetAttribute("Max", DoubleValue(0.02));
     Ptr < UniformRandomVariable > start_randomizer = CreateObject < UniformRandomVariable > ();
@@ -92,6 +99,8 @@ main(int argc, char * argv[]) {
     for (int i = 1; i < nClients; i++) {
         UdpEchoClientHelper echoClient(serverInterfaces.GetAddress(1), 9);
         //echoClient.SetAttribute("MaxPackets", UintegerValue(10));
+        if(i != 1)
+            echoClient.SetAttribute("MaxPackets", UintegerValue(1));
         if (i == 1) {
             echoClient.SetAttribute("Interval", TimeValue(Seconds(0.1)));
         } else {
@@ -114,7 +123,7 @@ main(int argc, char * argv[]) {
             std::cout << "Randomized start: " << randomized_start << std::endl;
         }
         clientApps.Stop(Seconds(10.0));
-    }
+    }*/
 
     // Flow monitor
     //Ptr<FlowMonitor> flowMonitor;
