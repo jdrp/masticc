@@ -71,7 +71,7 @@ main(int argc, char * argv[]) {
     // set up server
     UdpEchoServerHelper echoServer(9);
     ApplicationContainer serverApps = echoServer.Install(serverNodes.Get(1));
-    serverApps.Start(Seconds(1.0));
+    serverApps.Start(Seconds(0.0));
     serverApps.Stop(Seconds(12.0));
     // set up noise client
     RandomNoiseClientHelper noiseClient(serverInterfaces.GetAddress(1), 9);
@@ -79,8 +79,8 @@ main(int argc, char * argv[]) {
     noiseClient.SetAttribute("PacketSizeMean", DoubleValue(1000.0));
     noiseClient.SetAttribute("PacketSizeVariance", DoubleValue(1024.0));
     ApplicationContainer noiseApps = noiseClient.Install(star.GetSpokeNode(0));
-    noiseApps.Start(Seconds(2.0));
-    noiseApps.Stop(Seconds(8.0));
+    noiseApps.Start(Seconds(0.5));
+    noiseApps.Stop(Seconds(10.0));
     // set up main client
     UdpEchoClientHelper echoClient(serverInterfaces.GetAddress(1), 9);
     echoClient.SetAttribute("MaxPackets", UintegerValue(0));
@@ -88,7 +88,7 @@ main(int argc, char * argv[]) {
     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
     ApplicationContainer clientApps = echoClient.Install(star.GetSpokeNode(1));
     clientApps.Start(Seconds(1.0));
-    clientApps.Stop(Seconds(10.0));
+    clientApps.Stop(Seconds(9.0));
 
     /*Ptr < UniformRandomVariable > interval_randomizer = CreateObject < UniformRandomVariable > ();
     interval_randomizer -> SetAttribute("Min", DoubleValue(0.005));
