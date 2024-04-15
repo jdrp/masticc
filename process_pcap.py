@@ -10,7 +10,10 @@ import csv
 
 def smooth_data(data, window_size=4):
     smoothed = np.convolve(data, np.ones(window_size) / window_size, mode='valid')
-    smoothed = np.concatenate((np.full(window_size - 1, smoothed[0]), smoothed))
+    add_before = int(np.ceil((window_size - 1) / 2))
+    smoothed = np.concatenate((np.full(add_before, smoothed[0]),
+                               smoothed,
+                               np.full(window_size - 1 - add_before, smoothed[-1])))
     return list(smoothed)
 
 
@@ -88,36 +91,32 @@ def process_client_pcap(pcap_file) -> Optional[dict]:
 
 
 def filter_packets_from_ip(packets, ip):
-    filtered_packets = []
-    for packet in packets:
-        if IP in packet and UDP in packet:
-            if packet[IP].src == "192.168.1.2":
-                filtered_packets.append(packet)
-    return filtered_packets
+    return [packet for packet in packets if IP in packet and UDP in packet and packet[IP].src == ip]
 
 
-def process_router_pcaps(r1_pcap, r2_pcap, client_ip):
+def calculate_bw_ratio(r1_pcap, r2_pcap, client_ip, total_bw):
+    bw_ratio = []
     r1_packets = filter_packets_from_ip(rdpcap(r1_pcap), client_ip)
     r2_packets = filter_packets_from_ip(rdpcap(r2_pcap), client_ip)
-
-    print(len(r1_packets))
-
     for r1_packet, r2_packet in zip(r1_packets, r2_packets):
-        delay = r2_packet.time - r1_packet.time  # - 0.018432
-        print(delay)
-        packet_size = len(r2_packet[IP])
-        bw = packet_size / delay
-        print(bw)
+        delay = float(r2_packet.time - r1_packet.time)  # - 0.018432
+        packet_size = len(r2_packet[IP]) * 8.0  # bytes to bits
+        available_bw = packet_size / delay
+        bw_ratio.append(available_bw / total_bw)
+    return bw_ratio
 
 
 client_ip = "192.168.1.2"
 client_pcap_file = '../traces/client.pcap'
-r1_pcap_file = client_pcap_file  # '../traces/router1.pcap'
+r1_pcap_file = '../traces/router1.pcap'
 r2_pcap_file = '../traces/router2.pcap'
-process_router_pcaps(r1_pcap_file, r2_pcap_file, client_ip)
+bottleneck_bw = 1.0e6  # 1Mbps
 
 print(f"Processing {client_pcap_file}")
 latency_data = process_client_pcap(client_pcap_file)
+print(f"Processing {r1_pcap_file}, {r2_pcap_file}")
+bw_ratio = calculate_bw_ratio(r1_pcap_file, r2_pcap_file, client_ip, bottleneck_bw)
+latency_data.update({'bw_ratio': bw_ratio})
 
 with open('training_data/latency_data.pkl', 'wb') as f:
     pickle.dump(latency_data, f)
@@ -132,6 +131,15 @@ plt.plot(latency_data['ts'], latency_data['latencies'], color='green', label='Ra
 plt.plot(latency_data['ts'], latency_data['latencies_smoothed'], color='blue', label='Smoothed')
 plt.xlabel('Time')
 plt.ylabel('Latency')
+plt.title('Latency Over Time')
+plt.legend()
+# plt.show()
+
+
+plt.figure(figsize=(10, 6))
+plt.plot(latency_data['ts'], latency_data['bw_ratio'], color='green', label='1st deriv')
+plt.xlabel('Time')
+plt.ylabel('Latency 1st Derivative')
 plt.title('Latency Over Time')
 plt.legend()
 # plt.show()
