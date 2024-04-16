@@ -37,15 +37,15 @@ main(int argc, char * argv[]) {
     cmd.AddValue("accessDelay", "Delay of access links (ms)", accessDelay);
     cmd.AddValue("bottleneckRate", "Rate of access links (Mbps)", bottleneckRate);
     cmd.AddValue("bottleneckDelay", "Delay of access links (ms)", bottleneckDelay);
-    cmd.AddValue("meanNoiseInterval", "Average delay between noise packets (ms)", meanNoiseInterval);
-    cmd.AddValue("meanNoiseSize", "Average size of noise packets (bytes)", meanNoiseInterval);
+    cmd.AddValue("meanNoiseInterval", "Average interval between noise packets (ms)", meanNoiseInterval);
+    cmd.AddValue("meanNoiseSize", "Average size of noise packets (bytes)", meanNoiseSize);
     cmd.AddValue("verbose", "Tell echo applications to log if true", verbose);
     cmd.Parse(argc, argv);
     if (verbose) {
         LogComponentEnable("UdpEchoClientApplication", LOG_LEVEL_INFO);
         LogComponentEnable("UdpEchoServerApplication", LOG_LEVEL_INFO);
     }
-    nClients = nClients < 3 ? 3 : nClients;
+    nClients = nClients < 2 ? 2 : nClients;
     InternetStackHelper stack;
     Ipv4AddressHelper address;
 
@@ -83,7 +83,7 @@ main(int argc, char * argv[]) {
     UdpEchoServerHelper echoServer(9);
     ApplicationContainer serverApps = echoServer.Install(serverNodes.Get(1));
     serverApps.Start(Seconds(0.0));
-    serverApps.Stop(Seconds(12.0));
+    serverApps.Stop(Seconds(10.0));
     // set up noise client
     RandomNoiseClientHelper noiseClient(serverInterfaces.GetAddress(1), 9);
     noiseClient.SetAttribute("IntervalMean", DoubleValue(meanNoiseInterval / 1000.));
@@ -92,7 +92,7 @@ main(int argc, char * argv[]) {
     float variance = stdev * stdev;
     noiseClient.SetAttribute("PacketSizeVariance", DoubleValue(variance));
     ApplicationContainer noiseApps = noiseClient.Install(star.GetSpokeNode(0));
-    noiseApps.Start(Seconds(2.0));
+    noiseApps.Start(Seconds(0.0));
     noiseApps.Stop(Seconds(10.0));
 
     // set up main client
@@ -101,8 +101,8 @@ main(int argc, char * argv[]) {
     echoClient.SetAttribute("Interval", TimeValue(Seconds(0.1)));
     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
     ApplicationContainer clientApps = echoClient.Install(star.GetSpokeNode(1));
-    clientApps.Start(Seconds(1.0));
-    clientApps.Stop(Seconds(12.0));
+    clientApps.Start(Seconds(0.0));
+    clientApps.Stop(Seconds(10.0));
 
     /*Ptr < UniformRandomVariable > interval_randomizer = CreateObject < UniformRandomVariable > ();
     interval_randomizer -> SetAttribute("Min", DoubleValue(0.005));
