@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-bottleneckRates = [50.] # np.arange(5., 51., 5.)  # Mbps
+bottleneckRates = np.arange(5., 51., 5.)  # Mbps
 noiseSizes = np.arange(600, 1200, 250)  # bytes
 os.chdir('..')
 os.system('cp masticc/network_topology.cc scratch/')
