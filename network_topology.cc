@@ -29,7 +29,7 @@ main(int argc, char * argv[]) {
     uint32_t accessDelay = 5; // ms
     uint32_t bottleneckRate = 1; // Mbps
     uint32_t bottleneckDelay = 10; // ms
-    uint32_t meanNoiseInterval = 10; // ms
+    float meanNoiseInterval = 10; // ms
     uint32_t meanNoiseSize = 1000; // bytes
     CommandLine cmd(__FILE__);
     cmd.AddValue("nClients", "Number of clients connected to R1", nClients);
@@ -53,7 +53,7 @@ main(int argc, char * argv[]) {
     PointToPointHelper pointToPoint;
     pointToPoint.SetDeviceAttribute("DataRate", StringValue(std::to_string(accessRate) + "Mbps"));
     pointToPoint.SetChannelAttribute("Delay", StringValue(std::to_string(accessDelay) + "ms"));
-    pointToPoint.SetQueue("ns3::DropTailQueue",  "MaxSize", QueueSizeValue (QueueSize ("1p")));
+    pointToPoint.SetQueue("ns3::DropTailQueue",  "MaxSize", QueueSizeValue (QueueSize ("5p")));
     PointToPointStarHelper star(nClients, pointToPoint);
     star.InstallStack(stack);
     address.SetBase("192.168.0.0", "255.255.255.0");
@@ -140,23 +140,24 @@ main(int argc, char * argv[]) {
     }*/
 
     // Flow monitor
-    //Ptr<FlowMonitor> flowMonitor;
-    //FlowMonitorHelper flowHelper;
-    //flowMonitor = flowHelper.InstallAll();
+    Ptr<FlowMonitor> flowMonitor;
+    FlowMonitorHelper flowHelper;
+    flowMonitor = flowHelper.InstallAll();
     //flowMonitor = flowHelper.Install(routerNodes);
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     pointToPoint.EnablePcap("traces/client.pcap", star.GetSpokeNode(1) -> GetDevice(0), false, true);
-    pointToPoint.EnablePcap("traces/router1.pcap", star.GetHub() -> GetDevice(1), false, true);
-    pointToPoint.EnablePcap("traces/router2.pcap", serverDevices.Get(1), false, true);
+    // pointToPoint.EnablePcap("traces/router1.pcap", star.GetHub() -> GetDevice(1), false, true);
+    pointToPoint.EnablePcap("traces/router1.pcap", serverDevices.Get(0), false, true);
+    pointToPoint.EnablePcap("traces/router2.pcap", serverDevices.Get(0), false, true);
     //pointToPoint.EnablePcapAll("traces/ppp");
 
-    Simulator::Stop(Seconds(10));
+    Simulator::Stop(Seconds(15));
     Simulator::Run();
     Simulator::Destroy();
     //flowMonitor->GetAllProbes();
 
-    // flowMonitor->SerializeToXmlFile("NameOfFile.xml", true, true);
+    flowMonitor->SerializeToXmlFile("flowmonitor.xml", true, true);
     // AnimationInterface anim("NameOfFile.xml");
     //anim.ShowNode(serverNodes.Get(0));
     return 0;

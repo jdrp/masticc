@@ -93,16 +93,51 @@ def filter_packets_from_ip(packets, ip):
     return [packet for packet in packets if IP in packet and UDP in packet and packet[IP].src == ip]
 
 
-def calculate_bw_ratio(r1_pcap, r2_pcap, client_ip, total_bw):
+def calculate_bw_ratio(r1_pcap, total_bw, ts):
     bw_ratio = []
-    r1_packets = filter_packets_from_ip(rdpcap(r1_pcap), client_ip)
-    r2_packets = filter_packets_from_ip(rdpcap(r2_pcap), client_ip)
-    for r1_packet, r2_packet in zip(r1_packets, r2_packets):
-        delay = float(r2_packet.time - r1_packet.time)  # - 0.018432
-        packet_size = len(r2_packet[IP]) * 8.0  # bytes to bits
-        available_bw = packet_size / delay
-        bw_ratio.append(available_bw / total_bw)
+    r1_packets = rdpcap(r1_pcap)
+    # print(list([packet.id, packet[IP].src] for packet in r1_packets))
+    times_and_sizes = []
+    for packet in r1_packets:
+        if packet[IP].src == "10.0.2.2":  # skip returning echoes
+            continue
+        # print(packet[IP].src)
+        packet_size = len(packet[IP]) * 8.0  # bytes to bits
+        times_and_sizes.append([float(packet.time), packet_size])
+
+    for i in range(len(ts)):
+        filtered_sizes = [packet[1] for packet in times_and_sizes if ts[i] >= packet[0] > ts[i - 1]]
+        # print(filtered_sizes)
+        time_diff = float(ts[i] - ts[i-1])
+        total_bits = sum(filtered_sizes)
+        # print(total_bits, time_diff)
+        occupied_bw = total_bits / time_diff
+        occupied_ratio = occupied_bw / total_bw
+        # when the link is fully occupied, precision errors sometimes lead to an occupied_ratio like 1.00034 and a
+        # negative bw_ratio, so we should clamp it
+        if occupied_ratio > 1:
+            occupied_ratio = 1
+        bw_ratio.append(1 - occupied_ratio)
+
+        if occupied_ratio > 1:
+            print("filtered_sizes", filtered_sizes)
+            print("time_diff: ", time_diff)
+            print("total_bits: ", total_bits)
+            print("occupied_bw: ", occupied_bw)
+            print("occupied_ratio: ", occupied_ratio)
+
+    # print(bw_ratio)
     return bw_ratio
+
+
+# def calculate_bw_ratio(r1_pcap, total_bw, window=0.5):
+#     r1_packets = rdpcap(r1_pcap)
+#     times_and_sizes = []
+#     for packet in r1_packets:
+#         if IP in packet and UDP in packet:
+#             times_and_sizes.append([packet.time, len(packet[IP]) * 8.0])
+
+
 
 
 client_ip = "192.168.1.2"
@@ -114,7 +149,7 @@ bottleneck_bw = 1.0e6 if len(sys.argv) != 2 else float(sys.argv[1]) * 1.0e6  # 1
 # print(f"Processing {client_pcap_file}")
 latency_data = process_client_pcap(client_pcap_file)
 # print(f"Processing {r1_pcap_file}, {r2_pcap_file}")
-bw_ratio = calculate_bw_ratio(r1_pcap_file, r2_pcap_file, client_ip, bottleneck_bw)
+bw_ratio = calculate_bw_ratio(r1_pcap_file, bottleneck_bw, latency_data['ts'])
 latency_data.update({'bw_ratio': bw_ratio})
 
 # with open('training_data/latency_data.pkl', 'wb') as f:
@@ -127,23 +162,23 @@ with open(csv_path, 'a' if (file_exists := os.path.exists(csv_path)) else 'w') a
         writer.writerow(latency_data.keys())
     writer.writerows(list(zip(*latency_data.values()))[4:-4])
 
-# plt.figure(figsize=(10, 6))
-# plt.plot(latency_data['ts'], latency_data['latencies'], color='green', label='Raw')
-# plt.plot(latency_data['ts'], latency_data['latencies_smoothed'], color='blue', label='Smoothed')
-# plt.xlabel('Time')
-# plt.ylabel('Latency')
-# plt.title('Latency Over Time')
-# plt.legend()
-# # plt.show()
+plt.figure(figsize=(10, 6))
+plt.plot(latency_data['ts'], latency_data['latencies'], color='green', label='Raw')
+plt.plot(latency_data['ts'], latency_data['latencies_smoothed'], color='blue', label='Smoothed')
+plt.xlabel('Time')
+plt.ylabel('Latency')
+plt.title('Latency Over Time')
+plt.legend()
+# plt.show()
 #
 #
-# plt.figure(figsize=(10, 6))
-# plt.plot(latency_data['ts'], latency_data['bw_ratio'], color='green', label='1st deriv')
-# plt.xlabel('Time')
-# plt.ylabel('Latency 1st Derivative')
-# plt.title('Latency Over Time')
-# plt.legend()
-# # plt.show()
+plt.figure(figsize=(10, 6))
+plt.plot(latency_data['ts'], latency_data['bw_ratio'], color='green', label='available ratio')
+plt.xlabel('Time')
+plt.ylabel('BW ratio')
+plt.title('BW ratio Over Time')
+plt.legend()
+# plt.show()
 #
 #
 # plt.figure(figsize=(10, 6))
@@ -175,10 +210,10 @@ with open(csv_path, 'a' if (file_exists := os.path.exists(csv_path)) else 'w') a
 # plt.title('Latency Over Time')
 # plt.legend()
 #
-# plt.figure(figsize=(10, 6))
-# plt.plot(latency_data['ts'], latency_data['packet_loss'], color='green', label='Packet loss')
-# plt.xlabel('Time')
-# plt.ylabel('Packet loss')
-# plt.title('Packet loss Over Time')
-# plt.legend()
+plt.figure(figsize=(10, 6))
+plt.plot(latency_data['ts'], latency_data['packet_loss'], color='green', label='Packet loss')
+plt.xlabel('Time')
+plt.ylabel('Packet loss')
+plt.title('Packet loss Over Time')
+plt.legend()
 # plt.show()
