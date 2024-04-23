@@ -16,16 +16,19 @@ def smooth_data(data, window_size=4):
     return list(smoothed)
 
 
-def calculate_stats(data, window_size=20):
+def calculate_stats(data, window_size=10):
     mean = smooth_data(data, window_size)
     stdeviation = np.subtract(data, mean)
     return mean, stdeviation
 
 
-def calculate_derivatives(data):
-    first_order_derivative = np.concatenate(([0], np.diff(data, n=1).tolist()))
-    second_order_derivative = np.concatenate(([0, 0], np.diff(data, n=2).tolist()))
-    return first_order_derivative, second_order_derivative
+def calculate_derivatives(data, ts):
+    first_order_derivative = np.diff(data) / np.diff(ts)
+    first_order_derivative = np.concatenate(([0], first_order_derivative))
+    second_order_derivative = np.diff(first_order_derivative) / np.diff(ts)
+    second_order_derivative = np.concatenate(([0, 0], second_order_derivative))
+
+    return first_order_derivative.tolist(), second_order_derivative.tolist()
 
 
 def calculate_packet_loss(sending_times: dict, receiving_times: dict, window_size=20):
@@ -72,7 +75,7 @@ def process_client_pcap(pcap_file) -> Optional[dict]:
         return None
 
     latencies_smoothed = smooth_data(latencies, 4)
-    first_order_deriv, second_order_deriv = calculate_derivatives(latencies_smoothed)
+    first_order_deriv, second_order_deriv = calculate_derivatives(latencies_smoothed, ts)
 
     packet_loss = calculate_packet_loss(sending_times, receiving_times, 20)
     mean, stdev = calculate_stats(latencies_smoothed, 20)
@@ -108,7 +111,7 @@ def calculate_bw_ratio(r1_pcap, total_bw, ts):
     for i in range(len(ts)):
         filtered_sizes = [packet[1] for packet in times_and_sizes if ts[i] >= packet[0] > ts[i - 1]]
         # print(filtered_sizes)
-        time_diff = float(ts[i] - ts[i-1])
+        time_diff = float(ts[i] - ts[i - 1])
         total_bits = sum(filtered_sizes)
         # print(total_bits, time_diff)
         occupied_bw = total_bits / time_diff
@@ -138,13 +141,11 @@ def calculate_bw_ratio(r1_pcap, total_bw, ts):
 #             times_and_sizes.append([packet.time, len(packet[IP]) * 8.0])
 
 
-
-
 client_ip = "192.168.1.2"
 client_pcap_file = '../traces/client.pcap'
 r1_pcap_file = '../traces/router1.pcap'
 r2_pcap_file = '../traces/router2.pcap'
-bottleneck_bw = 1.0e6 if len(sys.argv) != 2 else float(sys.argv[1]) * 1.0e6  # 1Mbps
+bottleneck_bw = 50.0e6 if len(sys.argv) != 2 else float(sys.argv[1]) * 1.0e6  # 1Mbps
 
 # print(f"Processing {client_pcap_file}")
 latency_data = process_client_pcap(client_pcap_file)
@@ -162,22 +163,22 @@ with open(csv_path, 'a' if (file_exists := os.path.exists(csv_path)) else 'w') a
         writer.writerow(latency_data.keys())
     writer.writerows(list(zip(*latency_data.values()))[4:-4])
 
-plt.figure(figsize=(10, 6))
-plt.plot(latency_data['ts'], latency_data['latencies'], color='green', label='Raw')
-plt.plot(latency_data['ts'], latency_data['latencies_smoothed'], color='blue', label='Smoothed')
-plt.xlabel('Time')
-plt.ylabel('Latency')
-plt.title('Latency Over Time')
-plt.legend()
+# plt.figure(figsize=(10, 6))
+# plt.plot(latency_data['ts'], latency_data['latencies'], color='green', label='Raw')
+# plt.plot(latency_data['ts'], latency_data['latencies_smoothed'], color='blue', label='Smoothed')
+# plt.xlabel('Time')
+# plt.ylabel('Latency')
+# plt.title('Latency Over Time')
+# plt.legend()
 # plt.show()
 #
 #
-plt.figure(figsize=(10, 6))
-plt.plot(latency_data['ts'], latency_data['bw_ratio'], color='green', label='available ratio')
-plt.xlabel('Time')
-plt.ylabel('BW ratio')
-plt.title('BW ratio Over Time')
-plt.legend()
+# plt.figure(figsize=(10, 6))
+# plt.plot(latency_data['ts'], latency_data['bw_ratio'], color='green', label='available ratio')
+# plt.xlabel('Time')
+# plt.ylabel('BW ratio')
+# plt.title('BW ratio Over Time')
+# plt.legend()
 # plt.show()
 #
 #
@@ -210,10 +211,10 @@ plt.legend()
 # plt.title('Latency Over Time')
 # plt.legend()
 #
-plt.figure(figsize=(10, 6))
-plt.plot(latency_data['ts'], latency_data['packet_loss'], color='green', label='Packet loss')
-plt.xlabel('Time')
-plt.ylabel('Packet loss')
-plt.title('Packet loss Over Time')
-plt.legend()
+# plt.figure(figsize=(10, 6))
+# plt.plot(latency_data['ts'], latency_data['packet_loss'], color='green', label='Packet loss')
+# plt.xlabel('Time')
+# plt.ylabel('Packet loss')
+# plt.title('Packet loss Over Time')
+# plt.legend()
 # plt.show()
