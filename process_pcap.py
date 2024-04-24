@@ -92,10 +92,6 @@ def process_client_pcap(pcap_file) -> Optional[dict]:
     }
 
 
-def filter_packets_from_ip(packets, ip):
-    return [packet for packet in packets if IP in packet and UDP in packet and packet[IP].src == ip]
-
-
 def calculate_bw_ratio(r1_pcap, total_bw, ts):
     bw_ratio = []
     r1_packets = rdpcap(r1_pcap)
@@ -131,14 +127,6 @@ def calculate_bw_ratio(r1_pcap, total_bw, ts):
 
     # print(bw_ratio)
     return bw_ratio
-
-
-# def calculate_bw_ratio(r1_pcap, total_bw, window=0.5):
-#     r1_packets = rdpcap(r1_pcap)
-#     times_and_sizes = []
-#     for packet in r1_packets:
-#         if IP in packet and UDP in packet:
-#             times_and_sizes.append([packet.time, len(packet[IP]) * 8.0])
 
 
 client_ip = "192.168.1.2"

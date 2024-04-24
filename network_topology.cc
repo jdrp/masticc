@@ -104,41 +104,6 @@ main(int argc, char * argv[]) {
     clientApps.Start(Seconds(0.0));
     clientApps.Stop(Seconds(10.0));
 
-    /*Ptr < UniformRandomVariable > interval_randomizer = CreateObject < UniformRandomVariable > ();
-    interval_randomizer -> SetAttribute("Min", DoubleValue(0.005));
-    interval_randomizer -> SetAttribute("Max", DoubleValue(0.02));
-    Ptr < UniformRandomVariable > start_randomizer = CreateObject < UniformRandomVariable > ();
-    start_randomizer -> SetAttribute("Min", DoubleValue(1.0));
-    start_randomizer -> SetAttribute("Max", DoubleValue(3.0));
-    for (int i = 1; i < nClients; i++) {
-        UdpEchoClientHelper echoClient(serverInterfaces.GetAddress(1), 9);
-        //echoClient.SetAttribute("MaxPackets", UintegerValue(10));
-        if(i != 1)
-            echoClient.SetAttribute("MaxPackets", UintegerValue(1));
-        if (i == 1) {
-            echoClient.SetAttribute("Interval", TimeValue(Seconds(0.1)));
-        } else {
-            double randomized_interval = interval_randomizer -> GetValue();
-            echoClient.SetAttribute("Interval", TimeValue(Seconds(randomized_interval)));
-            std::cout << "Randomized interval: " << randomized_interval << std::endl;
-        }
-        if (i == 1) {
-            echoClient.SetAttribute("PacketSize", UintegerValue(1480));
-        } else {
-            echoClient.SetAttribute("PacketSize", UintegerValue(2960));
-        }
-
-        ApplicationContainer clientApps = echoClient.Install(star.GetSpokeNode(i));
-        if (i == 1) {
-            clientApps.Start(Seconds(1.0));
-        } else {
-            double randomized_start = start_randomizer -> GetValue();
-            clientApps.Start(Seconds(randomized_start));
-            std::cout << "Randomized start: " << randomized_start << std::endl;
-        }
-        clientApps.Stop(Seconds(10.0));
-    }*/
-
     // Flow monitor
     Ptr<FlowMonitor> flowMonitor;
     FlowMonitorHelper flowHelper;
@@ -155,10 +120,5 @@ main(int argc, char * argv[]) {
     Simulator::Stop(Seconds(15));
     Simulator::Run();
     Simulator::Destroy();
-    //flowMonitor->GetAllProbes();
-
-    flowMonitor->SerializeToXmlFile("flowmonitor.xml", true, true);
-    // AnimationInterface anim("NameOfFile.xml");
-    //anim.ShowNode(serverNodes.Get(0));
     return 0;
 }

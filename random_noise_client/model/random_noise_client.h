@@ -18,6 +18,8 @@
 #ifndef RANDOM_NOISE_CLIENT_H
 #define RANDOM_NOISE_CLIENT_H
 
+ #include<fstream>
+
 #include "ns3/application.h"
 #include "ns3/event-id.h"
 #include "ns3/ipv4-address.h"
@@ -25,6 +27,10 @@
 #include "ns3/traced-callback.h"
 #include "ns3/random-variable-stream.h"
 #include "ns3/double.h"
+
+ #include<map>
+ #include<list>
+ #include </usr/include/python3.10/Python.h>
 
 namespace ns3
 {
@@ -51,6 +57,30 @@ class RandomNoiseClient : public Application
 
     ~RandomNoiseClient() override;
 
+    uint32_t uid_probe = 0;
+    bool waiting_on_probe = false;
+    int msg_counter_since_probe = 0;
+    int nr_messages_between_probes = 3;
+
+    std::map<uint32_t, double> messageTimings;
+    std::list<double> latencies;
+    std::list<double> mean_latencies;
+    std::list<double> stdev_latency;
+    uint32_t view_size = 3;
+
+    double current_mean_latency = 0;
+    double current_stdev_latency = 0;
+    double current_latency = 0;
+    double current_latency_smoothed = 0;
+    double current_first_order_deriv = 0;
+    double current_second_order_deriv = 0;
+    double current_packet_loss = 0;
+
+    double predicted_bandwith_ratio = 0;
+    double optimal_speed = 0.0001;
+    double slowest_speed = 1;
+
+    double act_as_noise_client = true;
     /**
      * \brief set the remote address and port
      * \param ip remote IP address

@@ -15,7 +15,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
  #include <iostream>
+ #include<fstream>
+ #include<map>
+ #include<list>
+
+ #include<string.h>
+
+ #include </usr/include/python3.10/Python.h>
+
+//#include</home/luca/ns-3-dev/libtorch/include/torch/script.h>
+
+
 #include "ns3/random_noise_client.h"
+
 
 #include "ns3/inet-socket-address.h"
 #include "ns3/inet6-socket-address.h"
@@ -353,6 +365,7 @@ RandomNoiseClient::Send()
     std::cout << packetSize << "bytes"<< std::endl;
     Ptr<Packet> p = Create<Packet>(packetSize);
 
+
     Address localAddress;
     m_socket->GetSockName(localAddress);
     // call to the trace sinks before the packet is actually sent,
@@ -373,6 +386,10 @@ RandomNoiseClient::Send()
             Inet6SocketAddress(Ipv6Address::ConvertFrom(m_peerAddress), m_peerPort));
     }
     m_socket->Send(p);
+    double send_time = Now().GetSeconds();
+    messageTimings[p->GetUid()] = send_time;
+    std::cout << "send msg " << p->GetUid() << " at " << send_time << std::endl;
+
     ++m_sent;
 
     if (Ipv4Address::IsMatchingType(m_peerAddress))
@@ -402,12 +419,29 @@ RandomNoiseClient::Send()
                        << Inet6SocketAddress::ConvertFrom(m_peerAddress).GetPort());
     }
 
+    if (m_intervalMean == 0){
+        act_as_noise_client = false;
+    }
     if (m_sent < m_count || m_count == 0)
     {
+      if (act_as_noise_client == true){
         float randInterval =  m_exponentialRand->GetValue();
-        std::cout << randInterval << "ms" << std::endl;
         Time nextInterval(Seconds(randInterval));
         ScheduleTransmit(nextInterval);
+      }else{
+        //double delay_untill_next_package_send = optimal_speed * predicted_bandwith_ratio + slowest_speed * (1-predicted_bandwith_ratio);
+        if (predicted_bandwith_ratio < 0){predicted_bandwith_ratio = 0;}
+        if (predicted_bandwith_ratio > 1){predicted_bandwith_ratio = 1;}
+        double inverted_ratio = 1 - predicted_bandwith_ratio;
+        double delay_untill_next_package_send = inverted_ratio * inverted_ratio * inverted_ratio * inverted_ratio * inverted_ratio * inverted_ratio;
+        Time nextInterval(Seconds(delay_untill_next_package_send));
+        ScheduleTransmit(nextInterval);
+        std::cout << " * Current bandwith ratio: " << predicted_bandwith_ratio << std::endl;
+        std::cout << " * Delay untill next send: " << delay_untill_next_package_send << " s" << std::endl;
+      }
+
+
+
     }
 }
 
@@ -437,7 +471,126 @@ RandomNoiseClient::HandleRead(Ptr<Socket> socket)
         socket->GetSockName(localAddress);
         m_rxTrace(packet);
         m_rxTraceWithAddresses(packet, from, localAddress);
+
+
+        if (act_as_noise_client == false){
+          // Calculate statistics
+          uint32_t uid_received = packet->GetUid();
+          double send_time = messageTimings[uid_received];
+          double receive_time = Now().GetSeconds();
+          double delay = receive_time - send_time;
+          messageTimings.erase(uid_received);
+
+          latencies.push_back(delay);
+          if (latencies.size() > view_size){
+            latencies.pop_front();
+          }
+
+
+
+          double mean = 0;
+          for (std::list<double>::iterator it=latencies.begin(); it != latencies.end(); ++it){
+            mean += *it;
+          }
+          mean = mean / latencies.size();
+
+          mean_latencies.push_back(mean);
+          if (mean_latencies.size() > view_size){
+            mean_latencies.pop_front();
+          }
+
+          double standard_deviation = 0;
+          for (std::list<double>::iterator it=latencies.begin(); it != latencies.end(); ++it){
+            standard_deviation += (*it - mean) * (*it - mean);
+          }
+          standard_deviation = sqrt(standard_deviation/latencies.size());
+
+          stdev_latency.push_back(standard_deviation);
+          //std::cout << standard_deviation << :: std::endl;
+          if (stdev_latency.size() > view_size){
+            stdev_latency.pop_front();
+          }
+
+          current_mean_latency = mean;
+          current_stdev_latency = standard_deviation;
+          current_latency = delay;
+          current_latency_smoothed = mean;
+          current_first_order_deriv = 0;
+          current_second_order_deriv = 0;
+          current_packet_loss = 0;
+
+          //std::cout << "received msg " << uid_received << std::endl;
+          //std::cout << "  * mean_latency: " << current_mean_latency << "\n  * stdev_latency: " << current_stdev_latency << "\n  * latency: " << current_latency << std::endl;
+
+          uint32_t testint = 13;
+          char command[1000];
+          std::string a = std::to_string(testint);
+          strcpy(command, "import os;os.system(\'python3 /home/luca/ns-3-dev/masticc/useLSTM.py " );
+
+          if (mean_latencies.size() == view_size){
+            strcat(command, std::to_string(view_size).c_str());
+            strcat(command, " ");
+            for(int i = 0; i < view_size; i++){
+                int counter = 0;
+                for (std::list<double>::iterator it=mean_latencies.begin(); it != mean_latencies.end(); ++it){
+                  if (counter == i){
+                    double value = *it;
+                    strcat(command, std::to_string(value).c_str());
+                    break;
+                  }
+                  counter+=1;
+                }
+                strcat(command, " ");
+                counter = 0;
+                for (std::list<double>::iterator it=stdev_latency.begin(); it != stdev_latency.end(); ++it){
+                  if (counter == i){
+                    double value = *it;
+                    strcat(command, std::to_string(value).c_str());
+                    break;
+                  }
+                  counter+=1;
+                }
+                strcat(command, " ");
+                for (std::list<double>::iterator it=latencies.begin(); it != latencies.end(); ++it){
+                  if (counter == i){
+                    double value = *it;
+                    strcat(command, std::to_string(value).c_str());
+                    break;
+                  }
+                  counter+=1;
+                }
+                for (int j = 0; j < 4; j++){
+                  strcat(command, " 0");
+                }
+                strcat(command, " ");
+            }
+          }
+
+
+
+
+        //  strcat(command, a.c_str());
+          strcat(command, "\')");
+        //  std::cout << command << std::endl;
+          //std::cout << command << std::endl;
+          Py_Initialize();
+
+          PyRun_SimpleString(command);
+          Py_Finalize();
+
+          std::ifstream inputFile("pythonResult.txt");
+          if (!inputFile.is_open()){
+            std::cout << "INPUT FILE WAS NOT OPENED" << std::endl;
+          }else{
+            std::string line;
+            getline(inputFile, line);
+            predicted_bandwith_ratio = std::stod(line);
+
+          //  std::cout << " * Predicted bandwith ratio: " << predicted_bandwith_ratio << std::endl;
+          }
+        }
     }
 }
 
 } // Namespace ns3
+// ./ns3 build -I/usr/include/python3.10

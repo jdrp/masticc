@@ -6,6 +6,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import sys
+
 
 mm = MinMaxScaler()
 ss = StandardScaler()
@@ -145,6 +147,8 @@ def trainModel(df_train):
 def testModel(lstm, df_test):
     X_test, y_test = processData(df_test)
     train_predict = lstm(X_test)#forward pass
+
+
     data_predict = train_predict.data.numpy() #numpy conversion
     dataY_plot = y_test.data.numpy()
 
@@ -155,6 +159,34 @@ def testModel(lstm, df_test):
 
     return data_predict, dataY_plot
 
+def getResults(lstm, df):
+    ss = StandardScaler()
+    ss = ss.fit_transform(df)
+
+    X_scaled = ss[:len(df), :]
+    X_tensors = Variable(torch.Tensor(X_scaled))
+    X_tensors = torch.reshape(X_tensors,  (X_tensors.shape[0], 1, X_tensors.shape[1]))
+
+    results = lstm(X_tensors)#forward pass
+
+    results = results.data.numpy()
+    return results
+
+def loadPreTrainedModel(fileLocation, df):
+    input_size = 7 #number of features
+    hidden_size = 10 #number of features in hidden state
+    num_layers = 1 #number of stacked lstm layers
+    num_classes = 1 #number of output classes
+
+    ss = StandardScaler()
+    X = df.iloc[:, :-1]
+    ss = ss.fit_transform(X)
+    X_scaled = ss[:len(df), :]
+    X_tensors = Variable(torch.Tensor(X_scaled))
+    X_tensors = torch.reshape(X_tensors,  (X_tensors.shape[0], 1, X_tensors.shape[1]))
+    lstm = LSTM1(num_classes, input_size, hidden_size, num_layers, X_tensors.shape[1])
+    lstm.load_state_dict(torch.load(fileLocation))
+    return lstm
 
 class LSTM1(nn.Module):
     def __init__(self, num_classes, input_size, hidden_size, num_layers, seq_length):
@@ -199,17 +231,43 @@ def plot(datasets, labels, title):
     plt.title(title)
     plt.legend()
 
+def handleInput():
+    nrLines = 0
+    counter = 0
+    values = []
+    for arg in sys.argv:
+        if (counter == 1):
+            nrLines = int(arg)
+        if (counter > 1):
+            values.append(float(arg))
+        counter += 1
 
-
-
+    data = []
+    newCounter = 0
+    for i in range(nrLines):
+        line = []
+        for j in range(7):
+            line.append(values[newCounter])
+            newCounter+=1;
+        data.append(line)
+    return data
 
 def main():
-    df = pd.read_csv(dataset_name, index_col = 'ts')
-    df_train, df_test, df_validation = splitData(df, 1000)
+    # data = [[2,3,4,5,6,7,8],[1,3,4,5,6,7,8],[1,3,4,5,6,7,8]]
+    data = handleInput()
+    if (len(data) == 0):
+        return
+    # print(data)
 
-    lstm = trainModel(df_train)
-    data_predict, dataY_plot = testModel(lstm, df_test)
-    plot([dataY_plot, data_predict],['Actuall Data', 'Predicted Data'],'Time-Series Prediction')
-
-    plt.show()
+    df = pd.DataFrame(data, columns = ['mean_latency','stdev_latency','latencies','latencies_smoothed','first_order_deriv','second_order_deriv','packet_loss'])
+    lstm = loadPreTrainedModel("./masticc/savedModel.pth", df)
+    results = getResults(lstm, df)
+    # plot([results],['Predicted Data'],'Time-Series Prediction')
+    # plt.show()
+    # print(results)
+    file = open("pythonResult.txt" , "w")
+    # for result in results:
+        # file.write(str(result[0]) + ", ")
+    file.write(str(results[len(results)-1][0]))
+    file.close()
 main()
